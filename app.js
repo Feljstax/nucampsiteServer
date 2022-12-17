@@ -10,6 +10,22 @@ const campsiteRouter = require('./routes/campsiteRouter');
 const promotionRouter = require('./routes/promotionRouter');
 const partnerRouter = require('./routes/partnerRouter');
 
+const mongoose = require('mongoose');
+
+//connect to MongoDB
+const url = 'mongodb://localhost:27017/nucampsite';
+const connect = mongoose.connect(url, {
+  useCreateIndex: true,
+  useFindAndModify: false,
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+});
+
+//1st argument occurs if promise resolves, second argument handles rejected case. Other way to handle promise rejection besides catch()
+connect.then(() => console.log('Connected correctly to the server'),
+  err => console.log(err)
+);
+
 
 var app = express();
 
