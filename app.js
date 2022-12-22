@@ -36,35 +36,51 @@ app.set('view engine', 'jade');
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());
+app.use(cookieParser('12345-67890-09876-54321'));
 
 //authentication middleware
 function auth(req, res, next) {
-  console.log(req.headers);
-  const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    const err = new Error('You are not authenticated');
-    res.setHeader('WWW-Authenticate', 'Basic');
-    err.status = 401;
-    return next(err);
-  }
+  if (!req.signedCookies.user) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      const err = new Error('You are not authenticated');
+      res.setHeader('WWW-Authenticate', 'Basic');
+      err.status = 401;
+      return next(err);
+    }
 
-  //Parse the username and password from authheader string, and put in new array ['admin', 'password']
-  //Buffer is a global class in node. The from() method will decode username and password from credentials
-  const auth = Buffer.from(authHeader.split(' ')[1], 'base64').toString().split(':');
-  const user = auth[0];
-  const pass = auth[1];
-  //Basic validation
-  if (user === 'admin' && pass === 'password') {
-    //Pass control to next middlware function
-    return next(); //authorized
+    //Parse the username and password from authheader string, and put in new array ['admin', 'password']
+    //Buffer is a global class in node. The from() method will decode username and password from credentials
+    const auth = Buffer.from(authHeader.split(' ')[1], 'base64').toString().split(':');
+    const user = auth[0];
+    const pass = auth[1];
+    //Basic validation
+    if (user === 'admin' && pass === 'password') {
+      //Create new cookie, passing it the name of user
+      //This name will be used to setup a property of 'user' on signedCookies object (signed.Cookies.user)
+      //2nd argument will be a value to store in the 'name' property. 
+      //3rd argument is optional. Configuratioin values. Here we let Express to use the secret key from cookie parser to create a signed cookie
+      res.cookie('user', 'admin', { signed: true });
+
+      //Pass control to next middlware function
+      return next(); //authorized
+    } else {
+      const err = new Error('You are not authenticated!');
+      res.setHeader('WWW-Authenticate', 'Basic');
+      err.status = 401;
+      return next(err);
+    }
   } else {
-    const err = new Error('You are not authenticated!');
-    res.setHeader('WWW-Authenticate', 'Basic');
-    err.status = 401;
-    return next(err);
+    //If there is a signedCookie.user value in the request
+    if (req.signedCookies.user === 'admin') {
+      return next();
+    } else {
+      const err = new Error('You are not authenticated!');
+      res.setHeader();
+      err.status = 401;
+      return next(err);
+    }
   }
-
 };
 
 app.use(auth);
