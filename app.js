@@ -1,8 +1,13 @@
 var createError = require('http-errors');
 var express = require('express');
 var path = require('path');
+//We're using sessions now, which creates its own cookies and has its own cookieparser
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
+const session = require('express-session');
+//When there are 2 sets of parameters in this case: We invoke session-file-store, which returns a return function, then we're calling it with session
+const Filestore = require('session-file-store')(session);
+
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
@@ -36,11 +41,29 @@ app.set('view engine', 'jade');
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser('12345-67890-09876-54321'));
+//app.use(cookieParser('12345-67890-09876-54321'));
+
+//Using sessions to track authenticated users
+//Will add a property called 'session' to request message
+app.use(session({
+  name: 'session-id',
+  secret: '12345-67890-09876-54321',
+  //When new sessioin iis created with no updates, at end of request it won't be save because it's just an empty session
+  //No cookies will be saved to the client
+  saveUninitialized: false,
+  //Resave continues resaving session regardless of whether it made updates that needed to be saved.
+  resave: false,
+  //Use to save session info to server's hard disk instead instead of application memory
+  store: new Filestore()
+}));
+
+
 
 //authentication middleware
 function auth(req, res, next) {
-  if (!req.signedCookies.user) {
+  console.log(req.session);
+
+  if (!req.session.user) {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
       const err = new Error('You are not authenticated');
@@ -56,11 +79,9 @@ function auth(req, res, next) {
     const pass = auth[1];
     //Basic validation
     if (user === 'admin' && pass === 'password') {
-      //Create new cookie, passing it the name of user
-      //This name will be used to setup a property of 'user' on signedCookies object (signed.Cookies.user)
-      //2nd argument will be a value to store in the 'name' property. 
-      //3rd argument is optional. Configuratioin values. Here we let Express to use the secret key from cookie parser to create a signed cookie
-      res.cookie('user', 'admin', { signed: true });
+
+      //Saving to this session that the username is 'admin'
+      req.session.user = 'admin';
 
       //Pass control to next middlware function
       return next(); //authorized
@@ -71,8 +92,8 @@ function auth(req, res, next) {
       return next(err);
     }
   } else {
-    //If there is a signedCookie.user value in the request
-    if (req.signedCookies.user === 'admin') {
+    //If there is a session.user value in the request
+    if (req.session.user === 'admin') {
       return next();
     } else {
       const err = new Error('You are not authenticated!');
