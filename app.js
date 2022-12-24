@@ -1,14 +1,9 @@
 var createError = require('http-errors');
 var express = require('express');
 var path = require('path');
-//We're using sessions now, which creates its own cookies and has its own cookieparser
-var cookieParser = require('cookie-parser');
 var logger = require('morgan');
-const session = require('express-session');
-//When there are 2 sets of parameters in this case: We invoke session-file-store, which returns a return function, then we're calling it with session
-const Filestore = require('session-file-store')(session);
 const passport = require('passport');
-const authenticate = require('./authenticate');
+const config = require('./config');
 
 
 var indexRouter = require('./routes/index');
@@ -20,7 +15,7 @@ const partnerRouter = require('./routes/partnerRouter');
 const mongoose = require('mongoose');
 
 //connect to MongoDB
-const url = 'mongodb://localhost:27017/nucampsite';
+const url = config.mongoUrl;
 const connect = mongoose.connect(url, {
   useCreateIndex: true,
   useFindAndModify: false,
@@ -45,45 +40,12 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 //app.use(cookieParser('12345-67890-09876-54321'));
 
-//Using sessions to track authenticated users
-//Will add a property called 'session' to request message
-app.use(session({
-  name: 'session-id',
-  secret: '12345-67890-09876-54321',
-  //When new sessioin iis created with no updates, at end of request it won't be save because it's just an empty session
-  //No cookies will be saved to the client
-  saveUninitialized: false,
-  //Resave continues resaving session regardless of whether it made updates that needed to be saved.
-  resave: false,
-  //Use to save session info to server's hard disk instead instead of application memory
-  store: new Filestore()
-}));
 
-//Only necessary if using session based authentication
-//Middleware functions used by passport to check incoming requests to see if there's an existing sesson for that client
-//If so, session data for that client is added to that request as req.user
 app.use(passport.initialize());
-app.use(passport.session());
 
-//These routes are above the auth function because we want users to be able to create an account before they get challenged to authenticate themselves
-//And since logged out users get directed to index page, we want unauthenticated users to get access to that page, too
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 
-//authentication middleware
-function auth(req, res, next) {
-  console.log(req.user);
-
-  if (!req.user) {
-    const err = new Error('You are not authenticated');
-    err.status = 401;
-    return next(err);
-  } else {
-    return next();
-  }
-};
-
-app.use(auth);
 
 app.use(express.static(path.join(__dirname, 'public')));
 
