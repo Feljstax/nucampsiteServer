@@ -20,8 +20,10 @@ const commentSchema = new Schema({
         required: true
     },
     author: {
-        type: String,
-        required: true
+        //Store a reference to a user document through it's user Id
+        type: mongoose.Schema.Types.ObjectId,
+        //Reference to the user model
+        ref: 'User'
     }
 }, {
     timestamps: true

@@ -16,19 +16,34 @@ router.post('/signup', (req, res) => {
   User.register(
     new User({ username: req.body.username }),
     req.body.password,
-    err => {
+    (err, user) => {
       if (err) {
         //Internal server error
         res.statusCode = 500;
         res.setHeader('Content-Type', 'application/json');
         res.json({ err: err });
       } else {
-        //Use passport to authenticate user
-        //passport.authenticate returns a function, and we pass req/res in as argument
-        passport.authenticate('local')(req, req, () => {
-          res.statusCode = 200;
-          res.setHeader('Content-Type', 'application/json');
-          res.json({ success: true, status: 'Registration Successful!' });
+        if (req.body.firstname) {
+          user.firstname = req.body.firstname;
+        }
+        if (req.body.lastname) {
+          user.lastname = req.body.lastname;
+        }
+        //Save user to database
+        user.save(err => {
+          if (err) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.json({ err: err });
+            return;
+          }
+          //Use passport to authenticate user
+          //passport.authenticate returns a function, and we pass req/res in as argument
+          passport.authenticate('local')(req, req, () => {
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json');
+            res.json({ success: true, status: 'Registration Successful!' });
+          });
         });
       }
     }
