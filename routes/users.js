@@ -1,5 +1,7 @@
 const express = require('express');
 const User = require('../models/user');
+const passport = require('passport');
+const { reserved } = require('mongoose/lib/schema');
 
 const router = express.Router();
 
@@ -10,78 +12,33 @@ router.get('/', function (req, res, next) {
 });
 
 
-router.post('/signup', (req, res, next) => {
-  //Check if username isn't alrady taken
-  User.findOne({ username: req.body.username })
-    .then(user => {
-      //We'll either have a user document, or a null value meaning no user with that username was found
-      if (user) {
-        const err = new Error(`User ${req.body.username} already exists!`);
-        //Forbidden error status
-        err.status = 403;
-        return next(err);
+router.post('/signup', (req, res) => {
+  User.register(
+    new User({ username: req.body.username }),
+    req.body.password,
+    err => {
+      if (err) {
+        //Internal server error
+        res.statusCode = 500;
+        res.setHeader('Content-Type', 'application/json');
+        res.json({ err: err });
       } else {
-        //Create user document
-        User.create({
-          username: req.body.username,
-          password: req.body.password
-        })
-          .then(user => {
-            res.statusCode = 200;
-            res.setHeader('Content-Type', 'application/json');
-            res.json({ status: 'Registration Successful!', user: user });
-          })
-          .catch(err => next(err));
-      }
-    })
-    .catch(err => next(err));
-});
-
-router.post('/login', (req, res, next) => {
-  //Check if user's logged in/We're already tracking a user authenticated session
-  if (!req.session.user) {
-    //Need to login the user.  Simiilar to code from auth function to authenticate user
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      const err = new Error('You are not authenticated');
-      res.setHeader('WWW-Authenticate', 'Basic');
-      err.status = 401;
-      return next(err);
-    }
-
-    //Parse the username and password from authheader string, and put in new array ['admin', 'password']
-    //Buffer is a global class in node. The from() method will decode username and password from credentials
-    const auth = Buffer.from(authHeader.split(' ')[1], 'base64').toString().split(':');
-    const username = auth[0];
-    const password = auth[1];
-
-    //check username and password sent from request, and check against what's in the database
-    //Use findOne() on users collection to do this
-    User.findOne({ username: username })
-      .then(user => {
-        if (!user) {
-          const err = new Error(`User ${username} does not exist`);
-          err.status = 401;
-          return next(err);
-        } else if (user.password !== password) {
-          const err = new Error('Your password is incorrect');
-          err.status = 401;
-          return next(err);
-        } else if (user.username === username && user.password === password) {
-          //Authenticate user/setup session/begin tracking session
-          req.session.user = 'authenticated';
+        //Use passport to authenticate user
+        //passport.authenticate returns a function, and we pass req/res in as argument
+        passport.authenticate('local')(req, req, () => {
           res.statusCode = 200;
           res.setHeader('Content-Type', 'application/json');
-          res.end('You are authenticated!');
-        }
-      })
-      .catch(err => next(err));
-  } else {
-    //There's a session already being tracked AKA this client is already logged in
-    res.statusCode = 200;
-    res.setHeader('Content-Type', 'text/plain');
-    res.end('You are already autheticated');
-  }
+          res.json({ success: true, status: 'Registration Successful!' });
+        });
+      }
+    }
+  );
+});
+
+router.post('/login', passport.authenticate('local'), (req, res) => {
+  res.statusCode = 200;
+  res.setHeader('Content-Type', 'application/json');
+  res.json({ success: true, status: 'You are successfully logged in!' });
 });
 
 //Logging out the user

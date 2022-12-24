@@ -7,6 +7,8 @@ var logger = require('morgan');
 const session = require('express-session');
 //When there are 2 sets of parameters in this case: We invoke session-file-store, which returns a return function, then we're calling it with session
 const Filestore = require('session-file-store')(session);
+const passport = require('passport');
+const authenticate = require('./authenticate');
 
 
 var indexRouter = require('./routes/index');
@@ -57,6 +59,12 @@ app.use(session({
   store: new Filestore()
 }));
 
+//Only necessary if using session based authentication
+//Middleware functions used by passport to check incoming requests to see if there's an existing sesson for that client
+//If so, session data for that client is added to that request as req.user
+app.use(passport.initialize());
+app.use(passport.session());
+
 //These routes are above the auth function because we want users to be able to create an account before they get challenged to authenticate themselves
 //And since logged out users get directed to index page, we want unauthenticated users to get access to that page, too
 app.use('/', indexRouter);
@@ -64,22 +72,14 @@ app.use('/users', usersRouter);
 
 //authentication middleware
 function auth(req, res, next) {
-  console.log(req.session);
+  console.log(req.user);
 
-  if (!req.session.user) {
+  if (!req.user) {
     const err = new Error('You are not authenticated');
     err.status = 401;
     return next(err);
   } else {
-    //If there is a session.user value in the request
-    if (req.session.user === 'authenticated') {
-      return next();
-    } else {
-      const err = new Error('You are not authenticated!');
-      res.setHeader();
-      err.status = 401;
-      return next(err);
-    }
+    return next();
   }
 };
 
