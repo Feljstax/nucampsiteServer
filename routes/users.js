@@ -7,8 +7,14 @@ const router = express.Router();
 
 
 /* GET users listing. */
-router.get('/', function (req, res, next) {
-  res.send('respond with a resource');
+router.get('/', authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => {
+  User.find()
+    .then(user => {
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json');
+      res.json(user);
+    })
+    .catch(err => next(err));
 });
 
 
@@ -39,7 +45,7 @@ router.post('/signup', (req, res) => {
           }
           //Use passport to authenticate user
           //passport.authenticate returns a function, and we pass req/res in as argument
-          passport.authenticate('local')(req, req, () => {
+          passport.authenticate('local')(req, res, () => {
             res.statusCode = 200;
             res.setHeader('Content-Type', 'application/json');
             res.json({ success: true, status: 'Registration Successful!' });

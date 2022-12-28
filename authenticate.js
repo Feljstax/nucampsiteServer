@@ -11,6 +11,7 @@ exports.local = passport.use(new LocalStrategy(User.authenticate()));
 passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 
+
 //The user object that's passed in contains an ID for a user document
 exports.getToken = user => {
     //Create a token
@@ -37,7 +38,7 @@ exports.jwtPassport = passport.use(
             console.log('JWT payload:', jwt_payload);
             //Find a user with the same id as the one in the token
             //done is an object written in jtw passport module. It does all the work behind the scenes
-            User.findOne({ id: jwt_payload.id }, (err, user) => {
+            User.findOne({ _id: jwt_payload._id }, (err, user) => {
                 if (err) {
                     return done(err, false);
                 } else if (user) {
@@ -56,3 +57,15 @@ exports.jwtPassport = passport.use(
 //1st argument means we want to use the json web token strategy
 //2nd argument means we're going to use sessons
 exports.verifyUser = passport.authenticate('jwt', { session: false });
+
+
+exports.verifyAdmin = (req, res, next) => {
+    console.log(req);
+    if (req.user.admin == true) {
+        return next();
+    } else {
+        const err = new Error('Only admins!');
+        err.status = 403;
+        return next(err);
+    }
+};
