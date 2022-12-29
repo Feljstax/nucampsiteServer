@@ -31,6 +31,18 @@ connect.then(() => console.log('Connected correctly to the server'),
 
 var app = express();
 
+//Sends all requests to https server
+app.all('*', (req, res, next) => {
+  //Set to true when the connection the request was sent with was https
+  if (req.secure) {
+    return next();
+  } else {
+    console.log(`Redirecting to: https://${req.hostname}:${app.get('secPort')}${req.url}`);
+    //1st argument is status code for 'permanent redirect'
+    res.redirect(301, `https://${req.hostname}:${app.get('secPort')}${req.url}`);
+  }
+});
+
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');
